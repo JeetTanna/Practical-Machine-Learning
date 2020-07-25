@@ -1,0 +1,77 @@
+---
+title: "Machine_Learning_PA"
+author: "Jeet Tanna"
+date: "July 26, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+The goal of the assignment is to predict the manner in which they did the exercise. The goal is also to quantify how much of a particular activity they do. Thus we will first load the caret package and import the training and test data. I'll store the testing data in the valid variable and have the train data partitioned into training and testing with a 80-20 ratio.
+
+
+```{r}
+library(caret)
+train<-read.csv("C:/Users/JeetsPC-1/Desktop/Study Material/R DataSets/pml-training.csv")
+valid<-read.csv("C:/Users/JeetsPC-1/Desktop/Study Material/R DataSets/pml-testing.csv")
+training_samp <- createDataPartition(y=train$classe, p=0.7, list=FALSE)
+training <- train[training_samp, ]
+testing <- train[-training_samp, ]
+
+```
+
+#### Removing columns with NAs
+
+First we'll have to identify the colums which do not have NA values and they are the ones that we will be using in our model.
+So we'll create a function that will do that for us. 
+
+```{r}
+all_zero_colnames <- sapply(names(valid), function(x) all(is.na(valid[,x])==TRUE))
+nznames <- names(all_zero_colnames)[all_zero_colnames==FALSE]
+nznames <- nznames[-(1:7)]
+nznames <- nznames[1:(length(nznames)-1)]
+nznames
+```
+
+These are the variables that we will be using in our model.
+**Now we'll build the model using decision trees and random forest with the train function.**
+
+```{r}
+model<- train(classe ~ ., data=training[, c('classe', nznames)],method='rpart')
+model2<- train(classe ~ ., data=training[, c('classe', nznames)],method='rf',
+  ntree=50
+)
+```
+
+###Cross Validation of Models
+
+**Now that we have fitted two models, we can now cross validate them to find out which is more effective.**
+```{r}
+acc_dt <- predict(model, newdata=testing)
+cm_dt <- confusionMatrix(acc_dt, testing$classe)
+acc_rf <- predict(model2, newdata=testing)
+cm_rf <- confusionMatrix(acc_rf, testing$classe)
+Accuracy <- data.frame(Model = c('DT','RF'),Accuracy = rbind(cm_dt$overall[1],cm_rf$overall[1]))
+print(Accuracy)
+```
+
+Since the Random Forest has proved to be the most accurate model with over 0.99 accuracy we will look at its matrix
+```{r}
+cm_rf
+```
+
+###Prediction
+**We can now predict using the Random Forest Model on our validation dataset.**
+
+```{r}
+validation <- predict(model2, newdata=valid)
+validation_result <- data.frame(problem_id=valid$problem_id,predicted=validation)
+print(validation_result)
+```
+
+##Executive Summary
+A reasonably accurate model was fit using random forests which had an accuracy of over 0.99. The data was hard to work with because of the NA values and identifying them was the real task. A more efficient model still can be produced using an ensemble model which would take traits of both the decision tree model and the random forest model.
